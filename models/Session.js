@@ -1,147 +1,134 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const sessionSchema = new mongoose.Schema({
-  sessionId: {
-    type: String,
-    required: true,
+const Session = sequelize.define('Session', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  session_id: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
     unique: true
   },
-  table: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Table',
-    required: true
-  },
-  tableNumber: {
-    type: String,
-    required: true
-  },
-  customer: {
-    name: {
-      type: String,
-      required: true
-    },
-    phone: {
-      type: String,
-      required: true
+  table_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'tables',
+      key: 'id'
     }
   },
-  // Session timing
-  startTime: {
-    type: Date,
-    required: true,
-    default: Date.now
+  table_number: {
+    type: DataTypes.STRING(20),
+    allowNull: false
   },
-  endTime: {
-    type: Date,
-    default: null
+  customer_name: {
+    type: DataTypes.STRING(100),
+    allowNull: false
+  },
+  customer_phone: {
+    type: DataTypes.STRING(20),
+    allowNull: false
+  },
+  // Session timing
+  start_time: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW
+  },
+  end_time: {
+    type: DataTypes.DATE,
+    allowNull: true
   },
   duration: {
-    type: Number, // in minutes
-    default: 0
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    comment: 'Duration in minutes'
   },
   // Pricing
-  hourlyRate: {
-    type: Number,
-    required: true,
-    min: 0
+  hourly_rate: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
   },
-  sessionCost: {
-    type: Number,
-    default: 0,
-    min: 0
+  session_cost: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00
   },
-  // Orders associated with this session
-  orders: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Order'
-  }],
-  totalOrderCost: {
-    type: Number,
-    default: 0,
-    min: 0
+  total_order_cost: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00
   },
   // Total billing
   subtotal: {
-    type: Number,
-    default: 0,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00
   },
   tax: {
-    type: Number,
-    default: 0,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00
   },
-  serviceFee: {
-    type: Number,
-    default: 0,
-    min: 0
+  service_fee: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00
   },
   discount: {
-    type: Number,
-    default: 0,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00
   },
   total: {
-    type: Number,
-    default: 0,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00
   },
   // Payment
-  paymentStatus: {
-    type: String,
-    enum: ['unpaid', 'paid', 'refunded'],
-    default: 'unpaid'
+  payment_status: {
+    type: DataTypes.ENUM('unpaid', 'paid', 'refunded'),
+    defaultValue: 'unpaid'
   },
-  paymentMethod: {
-    type: String,
-    enum: ['cash', 'card', 'upi', 'online'],
-    default: null
+  payment_method: {
+    type: DataTypes.ENUM('cash', 'card', 'upi', 'online'),
+    allowNull: true
   },
   // Session status
   status: {
-    type: String,
-    enum: ['active', 'paused', 'completed', 'cancelled'],
-    default: 'active'
+    type: DataTypes.ENUM('active', 'paused', 'completed', 'cancelled'),
+    defaultValue: 'active'
   },
   // Extensions
-  extensions: [{
-    extendedBy: Number, // minutes
-    extendedAt: Date,
-    reason: String
-  }],
+  extensions: {
+    type: DataTypes.JSON,
+    defaultValue: []
+  },
   // Staff who created the session
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  created_by: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
   // Smart plug control
-  plugControlled: {
-    type: Boolean,
-    default: false
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  plug_controlled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  }
+}, {
+  tableName: 'sessions',
+  hooks: {
+    beforeCreate: async (session) => {
+      if (!session.session_id) {
+        const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        session.session_id = `SES-${year}${month}${day}-${random}`;
+      }
+    }
   }
 });
 
-// Generate session ID before saving
-sessionSchema.pre('save', async function(next) {
-  if (!this.sessionId) {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    this.sessionId = `SES-${year}${month}${day}-${random}`;
-  }
-  this.updatedAt = Date.now();
-  next();
-});
-
-module.exports = mongoose.model('Session', sessionSchema);
+module.exports = Session;

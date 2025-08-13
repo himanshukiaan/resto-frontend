@@ -1,91 +1,94 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const tableSchema = new mongoose.Schema({
-  tableNumber: {
-    type: String,
-    required: true,
+const Table = sequelize.define('Table', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  table_number: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
     unique: true
   },
   name: {
-    type: String,
-    required: true
+    type: DataTypes.STRING(100),
+    allowNull: false
   },
   type: {
-    type: String,
-    enum: ['Snooker', 'Pool', 'PlayStation', 'Restaurant', 'Dining', 'Food'],
-    required: true
+    type: DataTypes.ENUM('Snooker', 'Pool', 'PlayStation', 'Restaurant', 'Dining', 'Food'),
+    allowNull: false
   },
   location: {
-    type: String,
-    required: true
+    type: DataTypes.STRING(100),
+    allowNull: false
   },
   capacity: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  status: {
-    type: String,
-    enum: ['available', 'occupied', 'reserved', 'maintenance'],
-    default: 'available'
-  },
-  hourlyRate: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  // Smart plug configuration
-  plugId: {
-    type: String,
-    default: null
-  },
-  plugStatus: {
-    type: String,
-    enum: ['online', 'offline'],
-    default: 'offline'
-  },
-  // Current session info
-  currentSession: {
-    sessionId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Session',
-      default: null
-    },
-    startTime: {
-      type: Date,
-      default: null
-    },
-    endTime: {
-      type: Date,
-      default: null
-    },
-    customer: {
-      name: String,
-      phone: String
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 4,
+    validate: {
+      min: 1
     }
   },
+  status: {
+    type: DataTypes.ENUM('available', 'occupied', 'reserved', 'maintenance'),
+    defaultValue: 'available'
+  },
+  hourly_rate: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+    validate: {
+      min: 0
+    }
+  },
+  // Smart plug configuration
+  plug_id: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+  },
+  plug_status: {
+    type: DataTypes.ENUM('online', 'offline'),
+    defaultValue: 'offline'
+  },
+  // Current session info
+  current_session_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'sessions',
+      key: 'id'
+    }
+  },
+  session_start_time: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  session_end_time: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  customer_name: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  customer_phone: {
+    type: DataTypes.STRING(20),
+    allowNull: true
+  },
   // Table features
-  features: [{
-    type: String
-  }],
-  isActive: {
-    type: Boolean,
-    default: true
+  features: {
+    type: DataTypes.JSON,
+    defaultValue: []
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   }
+}, {
+  tableName: 'tables'
 });
 
-// Update timestamp on save
-tableSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
-
-module.exports = mongoose.model('Table', tableSchema);
+module.exports = Table;

@@ -1,123 +1,93 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
+const { sequelize } = require('../config/database');
 
-const userSchema = new mongoose.Schema({
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   name: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.STRING(100),
+    allowNull: false,
+    validate: {
+      notEmpty: true,
+      len: [2, 100]
+    }
   },
   username: {
-    type: String,
-    required: true,
+    type: DataTypes.STRING(50),
+    allowNull: false,
     unique: true,
-    trim: true
+    validate: {
+      notEmpty: true,
+      len: [3, 50]
+    }
   },
   email: {
-    type: String,
-    required: true,
+    type: DataTypes.STRING(100),
+    allowNull: false,
     unique: true,
-    lowercase: true,
-    trim: true
+    validate: {
+      isEmail: true,
+      notEmpty: true
+    }
   },
   password: {
-    type: String,
-    required: true,
-    minlength: 3
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    validate: {
+      notEmpty: true,
+      len: [3, 255]
+    }
   },
   phone: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    validate: {
+      notEmpty: true
+    }
   },
   role: {
-    type: String,
-    enum: ['Admin', 'Staff', 'Manager', 'User'],
-    default: 'User'
+    type: DataTypes.ENUM('Admin', 'Staff', 'Manager', 'User'),
+    defaultValue: 'User',
+    allowNull: false
   },
-  // Staff permissions (for Admin/Manager/Staff roles)
+  // Staff permissions
   permissions: {
-    tablesManagement: {
-      view: { type: Boolean, default: false },
-      manage: { type: Boolean, default: false },
-      status: { type: Boolean, default: false }
-    },
-    orderProcessing: {
-      create: { type: Boolean, default: false },
-      modify: { type: Boolean, default: false },
-      cancel: { type: Boolean, default: false }
-    },
-    billingAccess: {
-      generate: { type: Boolean, default: false },
-      payments: { type: Boolean, default: false },
-      reports: { type: Boolean, default: false }
-    },
-    kotManagement: {
-      print: { type: Boolean, default: false },
-      modify: { type: Boolean, default: false },
-      status: { type: Boolean, default: false }
-    },
-    specialPermissions: {
-      voidOrders: {
-        items: { type: Boolean, default: false },
-        fullOrder: { type: Boolean, default: false },
-        afterPayment: { type: Boolean, default: false }
-      },
-      discounts: {
-        item: { type: Boolean, default: false },
-        bill: { type: Boolean, default: false },
-        offers: { type: Boolean, default: false },
-        maxDiscount: { type: Number, default: 0 }
+    type: DataTypes.JSON,
+    defaultValue: {}
+  },
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
+  last_login: {
+    type: DataTypes.DATE,
+    allowNull: true
+  }
+}, {
+  tableName: 'users',
+  hooks: {
+    beforeCreate: async (user) => {
+      if (user.password) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
       }
     },
-    reportAccess: {
-      daily: { type: Boolean, default: false },
-      table: { type: Boolean, default: false },
-      item: { type: Boolean, default: false }
-    },
-    canAddItems: { type: Boolean, default: false },
-    canChangePrices: { type: Boolean, default: false },
-    canManageStaff: { type: Boolean, default: false }
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  lastLogin: {
-    type: Date
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+    beforeUpdate: async (user) => {
+      if (user.changed('password')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    }
   }
 });
 
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword) {
+// Instance method to compare password
+User.prototype.comparePassword = async function(candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Update timestamp on save
-userSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
-
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;

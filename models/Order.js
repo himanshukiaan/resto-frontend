@@ -1,151 +1,128 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const orderSchema = new mongoose.Schema({
-  orderId: {
-    type: String,
-    required: true,
+const Order = sequelize.define('Order', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  order_id: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
     unique: true
   },
-  table: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Table',
-    required: true
-  },
-  tableNumber: {
-    type: String,
-    required: true
-  },
-  customer: {
-    name: {
-      type: String,
-      required: true
-    },
-    phone: {
-      type: String,
-      required: true
+  table_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'tables',
+      key: 'id'
     }
   },
-  items: [{
-    menuItem: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'MenuItem',
-      required: true
-    },
-    name: String,
-    price: Number,
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1
-    },
-    specialInstructions: String,
-    status: {
-      type: String,
-      enum: ['pending', 'preparing', 'ready', 'served'],
-      default: 'pending'
-    }
-  }],
-  serviceType: {
-    type: String,
-    enum: ['dine-in', 'takeaway'],
-    default: 'dine-in'
+  table_number: {
+    type: DataTypes.STRING(20),
+    allowNull: false
   },
-  orderType: {
-    type: String,
-    enum: ['food', 'drinks', 'games', 'mixed'],
-    required: true
+  customer_name: {
+    type: DataTypes.STRING(100),
+    allowNull: false
+  },
+  customer_phone: {
+    type: DataTypes.STRING(20),
+    allowNull: false
+  },
+  service_type: {
+    type: DataTypes.ENUM('dine-in', 'takeaway'),
+    defaultValue: 'dine-in'
+  },
+  order_type: {
+    type: DataTypes.ENUM('food', 'drinks', 'games', 'mixed'),
+    allowNull: false
   },
   status: {
-    type: String,
-    enum: ['pending', 'confirmed', 'preparing', 'ready', 'served', 'cancelled'],
-    default: 'pending'
+    type: DataTypes.ENUM('pending', 'confirmed', 'preparing', 'ready', 'served', 'cancelled'),
+    defaultValue: 'pending'
   },
   // Pricing
   subtotal: {
-    type: Number,
-    required: true,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
   },
   tax: {
-    type: Number,
-    required: true,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
   },
   discount: {
-    type: Number,
-    default: 0,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00
   },
-  discountType: {
-    type: String,
-    enum: ['percentage', 'fixed'],
-    default: 'percentage'
+  discount_type: {
+    type: DataTypes.ENUM('percentage', 'fixed'),
+    defaultValue: 'percentage'
   },
   total: {
-    type: Number,
-    required: true,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
   },
   // Payment info
-  paymentStatus: {
-    type: String,
-    enum: ['unpaid', 'paid', 'refunded'],
-    default: 'unpaid'
+  payment_status: {
+    type: DataTypes.ENUM('unpaid', 'paid', 'refunded'),
+    defaultValue: 'unpaid'
   },
-  paymentMethod: {
-    type: String,
-    enum: ['cash', 'card', 'upi', 'online'],
-    default: null
+  payment_method: {
+    type: DataTypes.ENUM('cash', 'card', 'upi', 'online'),
+    allowNull: true
   },
   // KOT info
-  kotPrinted: {
-    type: Boolean,
-    default: false
+  kot_printed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   },
-  kotPrintedAt: {
-    type: Date,
-    default: null
+  kot_printed_at: {
+    type: DataTypes.DATE,
+    allowNull: true
   },
   // Staff who created the order
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  created_by: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
-  specialInstructions: {
-    type: String,
-    trim: true
+  special_instructions: {
+    type: DataTypes.TEXT,
+    allowNull: true
   },
-  estimatedTime: {
-    type: Number, // in minutes
-    default: 30
+  estimated_time: {
+    type: DataTypes.INTEGER,
+    defaultValue: 30,
+    comment: 'Estimated time in minutes'
   },
-  actualTime: {
-    type: Number, // in minutes
-    default: null
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  actual_time: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Actual time in minutes'
+  }
+}, {
+  tableName: 'orders',
+  hooks: {
+    beforeCreate: async (order) => {
+      if (!order.order_id) {
+        const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        order.order_id = `ORD-${year}${month}${day}-${random}`;
+      }
+    }
   }
 });
 
-// Generate order ID before saving
-orderSchema.pre('save', async function(next) {
-  if (!this.orderId) {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    this.orderId = `ORD-${year}${month}${day}-${random}`;
-  }
-  this.updatedAt = Date.now();
-  next();
-});
-
-module.exports = mongoose.model('Order', orderSchema);
+module.exports = Order;

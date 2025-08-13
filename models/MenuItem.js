@@ -1,79 +1,73 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const menuItemSchema = new mongoose.Schema({
+const MenuItem = sequelize.define('MenuItem', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   name: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.STRING(100),
+    allowNull: false,
+    validate: {
+      notEmpty: true
+    }
   },
   description: {
-    type: String,
-    trim: true
+    type: DataTypes.TEXT,
+    allowNull: true
   },
   category: {
-    type: String,
-    required: true,
-    enum: ['Food', 'Drinks', 'Games', 'Beverages', 'Mixed']
+    type: DataTypes.ENUM('Food', 'Drinks', 'Games', 'Beverages', 'Mixed'),
+    allowNull: false
   },
   subcategory: {
-    type: String,
-    required: true
+    type: DataTypes.STRING(50),
+    allowNull: false
   },
   price: {
-    type: Number,
-    required: true,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    validate: {
+      min: 0
+    }
   },
   image: {
-    type: String,
-    default: null
+    type: DataTypes.STRING(255),
+    allowNull: true
   },
   // Printer routing
   printer: {
-    type: String,
-    required: true,
-    enum: ['Kitchen Printer', 'Bar Printer', 'Main Printer', 'Game Zone Printer']
+    type: DataTypes.ENUM('Kitchen Printer', 'Bar Printer', 'Main Printer', 'Game Zone Printer'),
+    allowNull: false
   },
   // Item availability
-  isAvailable: {
-    type: Boolean,
-    default: true
+  is_available: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   },
   // Item variants/types
-  variants: [{
-    name: String,
-    price: Number
-  }],
-  // Nutritional info (optional)
-  nutritionalInfo: {
-    calories: Number,
-    isVegetarian: Boolean,
-    isVegan: Boolean,
-    isSpicy: Boolean,
-    allergens: [String]
+  variants: {
+    type: DataTypes.JSON,
+    defaultValue: []
   },
-  preparationTime: {
-    type: Number, // in minutes
-    default: 15
+  // Nutritional info
+  nutritional_info: {
+    type: DataTypes.JSON,
+    defaultValue: {}
   },
-  isPopular: {
-    type: Boolean,
-    default: false
+  preparation_time: {
+    type: DataTypes.INTEGER,
+    defaultValue: 15,
+    comment: 'Preparation time in minutes'
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  is_popular: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
+}, {
+  tableName: 'menu_items'
 });
 
-// Update timestamp on save
-menuItemSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
-
-module.exports = mongoose.model('MenuItem', menuItemSchema);
+module.exports = MenuItem;
